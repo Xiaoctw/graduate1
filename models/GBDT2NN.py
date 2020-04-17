@@ -200,6 +200,7 @@ def predict_gbdt_batch(gbm,batch_x,num_tree_a_group):
     #     for t in range(1,num_tree+1):
     #         l = pred_leaf[i][t-1]
     #         val += gbm.get_leaf_output(t-1, l)
+
     #         if ((t) % num_tree_a_group == 0) or t == num_tree:
     #             temp_y[i][math.ceil((t) / num_tree_a_group) - 1] = val
     #             #print(val)
