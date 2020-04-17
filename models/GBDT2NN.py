@@ -13,7 +13,7 @@ class Dense_Part(nn.Module):
         super(Dense_Part, self).__init__()
         self.task = task
         self.lin1 = nn.Linear(field_size * embedding_size, 16)
-        self.drop = nn.Dropout(0.2)
+        self.drop = nn.Dropout(0.1)
         self.batch_norm1 = nn.BatchNorm1d(16)
         self.lin2 = nn.Linear(16, 6)
         self.batch_norm2 = nn.BatchNorm1d(6)
@@ -24,10 +24,10 @@ class Dense_Part(nn.Module):
         x = x.view(num_item, -1)
         x = torch.relu(self.lin1(x))
         x = self.drop(x)
-        x = self.batch_norm1(x)
+      #  x = self.batch_norm1(x)
         x = torch.relu(self.lin2(x))
         x = self.drop(x)
-        x = self.batch_norm2(x)
+     #   x = self.batch_norm2(x)
         x = self.lin3(x)
         return x
 
@@ -97,7 +97,8 @@ class Gbdt_Dense(nn.Module):
             #     print('训练deep模型,第{}轮,当前loss为:{}'.format(epoch, total_loss))
         return
 
-
+def sigmod(val):
+    return 1/(1+math.exp(-val))
 
 def construct_GBDT_Dense(train_x, train_y, test_x, test_y, field_size, feat_sizes,
                          lr=3e-2, num_epoch=40, task='binary',
@@ -138,25 +139,29 @@ def construct_GBDT_Dense(train_x, train_y, test_x, test_y, field_size, feat_size
     temp_y = np.zeros((num_item, num_group))
     for i in range(num_item):
         val = 0
-        for t in range(num_tree):
-            l = pred_leaf[i][t]
-            val += gbm.get_leaf_output(t, l)
-            if (t > 0 and t % num_tree_a_group == 0) or t == num_tree:
-                temp_y[i][math.ceil(t / num_tree_a_group) - 1] = val
+        for t in range(1,num_tree+1):
+            l = pred_leaf[i][t-1]
+            val += gbm.get_leaf_output(t-1, l)
+            if ((t) % num_tree_a_group == 0) or t == num_tree:
+                temp_y[i][math.ceil((t) / num_tree_a_group) - 1] = val
+                #print(val)
                 val = 0
-    train_x, train_y = torch.Tensor(train_x).long(), torch.Tensor(temp_y).float()
+    # print(gbm.predict(train_x)[:10])
+    # print((temp_y.sum(axis=1))[:10])
+    temp_x, temp_y = torch.Tensor(train_x).long(), torch.Tensor(temp_y).float()
     cri = nn.MSELoss(reduction='sum')
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model: nn.Module = Gbdt_Dense(field_size, feat_sizes, embedding_size=3, num_group=num_group,task='binary')
     model = model.to(device)
     opt = torch.optim.Adam(lr=lr, params=model.parameters())
-    data_set = Data.TensorDataset(train_x, train_y)
+    data_set = Data.TensorDataset(temp_x, temp_y)
     data_loader = Data.DataLoader(dataset=data_set, batch_size=256, shuffle=True, )
     total_losses = []
     roc_auces = []
     for epoch in range(num_epoch):
         total_loss = 0
         for step, (batch_x, batch_y) in enumerate(data_loader):
+          #  print(batch_y)
             opt.zero_grad()
             batch_x, batch_y = batch_x.to(device), batch_y.to(device)
             outputs = model(batch_x)
@@ -164,15 +169,14 @@ def construct_GBDT_Dense(train_x, train_y, test_x, test_y, field_size, feat_size
             loss.backward()
             opt.step()
             total_loss += loss.item()
-        if epoch % 2 == 0:
+        if epoch % 5 == 0:
             model.eval()
             with torch.no_grad():
                 pred_train = model.predict(train_x)
-                # print(pred_train[:10])
-                # print(Y[:10])
                 roc_score = roc_auc_score(np.array(Y), np.array(pred_train))
                 roc_auces.append(roc_score)
                 print('epoch：{}，roc_auc:{}'.format(epoch, roc_score))
+                print('epoch：{}，loss:{}'.format(epoch,total_loss))
                 roc_auces.append(roc_score)
             model.train()
         total_losses.append(total_loss)
@@ -191,11 +195,20 @@ def predict_gbdt_batch(gbm,batch_x,num_tree_a_group):
     num_tree = pred_leaf.shape[1]
     num_group = math.ceil(num_tree / num_tree_a_group)
     batch_y = np.zeros((num_item, num_group))
+    # for i in range(num_item):
+    #     val = 0
+    #     for t in range(1,num_tree+1):
+    #         l = pred_leaf[i][t-1]
+    #         val += gbm.get_leaf_output(t-1, l)
+    #         if ((t) % num_tree_a_group == 0) or t == num_tree:
+    #             temp_y[i][math.ceil((t) / num_tree_a_group) - 1] = val
+    #             #print(val)
+    #             val = 0
     for i in range(num_item):
         val = 0
-        for t in range(num_tree):
-            l = pred_leaf[i][t]
-            val += gbm.get_leaf_output(t, l)
+        for t in range(1,num_tree+1):
+            l = pred_leaf[i][t-1]
+            val += gbm.get_leaf_output(t-1, l)
             if (t > 0 and t % num_tree_a_group == 0) or t == num_tree:
                 batch_y[i][math.ceil(t / num_tree_a_group) - 1] = val
                 val = 0

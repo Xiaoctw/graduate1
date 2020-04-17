@@ -21,6 +21,9 @@ def pre_data(data_name):
         return pre_Chicago()
     # elif data_name=='moscow':
     #     return pre_moscow()
+    elif data_name=='database':
+        return pre_database()
+
 
 
 def pre_adv_predict():
@@ -422,7 +425,6 @@ def pre_titanic():
     test_y = Y[num_train:]
     return train_x, train_x, train_x, test_x, test_x, test_x, train_y, test_y
 
-
 def pre_moscow():
     X=pd.read_csv('/home/xiao/俄罗斯房价/adv_train.csv')
     Y=np.array(X['price_doc'])
@@ -590,6 +592,130 @@ def pre_Chicago():
  #    print(test_X.shape)
     return train_X,train_X,train_num_X,test_X,test_X,test_num_X,train_Y,test_Y
 
+def pre_database():
+    root1 = os.path.dirname(os.path.realpath(__file__))
+    data_path = root1 + '/data/database.csv'
+    X = pd.read_csv(data_path, nrows=4000)
+    def cut_CrimeSolved(val):
+        if val == 'Yes':
+            return 1
+        return 0
+    X['Crime Solved'] = X['Crime Solved'].apply(cut_CrimeSolved)
+    Y=X['Crime Solved']
+    X = X.drop(['Record ID','Crime Solved'], axis=1)
+    def cut_AgencyCode(val):
+        if val=='AZ00723':
+            return 0
+        return 1
+    X['Agency Code']=X['Agency Code'].apply(cut_AgencyCode)
+    def cut_AgencyName(val):
+        if val == 'Phoenix':
+            return 0
+        return 1
+    X['Agency Name'] = X['Agency Name'].apply(cut_AgencyName)
+    def cut_City(val):
+        if val in {'Fulton', 'Cleburne', 'Arkansas'}:
+            return 0
+        elif val in {'Walker', 'Boone', 'Clark', 'Limestone', 'Grant',
+                     'Fayette'}:
+            return 1
+        elif val in {'Pima', 'Crawford', 'Cullman', 'Sebastian', 'Anchorage', 'Marocopa',
+                     'Dallas'}:
+            return 2
+        return 3
+    X['City'] = X['City'].apply(cut_City)
+    X = X.drop('Year', axis=1)
+    def cut_Month(val):
+        if val in {'June', 'October', 'September', 'January'}:
+            return 0
+        if val in {'July', 'November', 'December', 'February'}:
+            return 1
+        return 2
+    X['Month'] = X['Month'].apply(cut_Month)
+    def cut_CrimeType(val):
+        if val == 'Murder or Manslaughter':
+            return 0
+        return 1
+    X['Crime Type'] = X['Crime Type'].apply(cut_CrimeType)
+    def cut_VictimAge(val):
+        if val <= 45:
+            return 1
+        return 2
+    X['Victim Age'] = X['Victim Age'].apply(cut_VictimAge)
+    def cut_PerpetratorAge(val):
+        if val <= 20:
+            return 0
+        elif val <= 37.5:
+            return 1
+        return 2
+    X['Perpetrator Age'] = X['Perpetrator Age'].apply(cut_PerpetratorAge)
+    def cut_Relationship(val):
+        if val == 'Unknown':
+            return 0
+        elif val == 'Stranger':
+            return 1
+        return 2
+    X['Relationship'] = X['Relationship'].apply(cut_Relationship)
+    def cutWeapon(val):
+        if val in {'Explosives', 'Drugs'}:
+            return 0
+        elif val in {'Fire', 'Firearm', 'Unknown'}:
+            return 1
+        elif val in {'Strangulation', 'Suffocation'}:
+            return 2
+        elif val in {'Drowning', 'Fall', 'Fifle'}:
+            return 3
+        return 4
+    X['Weapon'] = X['Weapon'].apply(cutWeapon)
+    def cut_VictimCount(val):
+        if val == 0:
+            return 0
+        elif val <= 1:
+            return 1
+        elif val <= 2:
+            return 2
+        return 3
+    X['Victim Count'] = X['Victim Count'].apply(cut_VictimCount)
+    def cut_PerpetratorCount(val):
+        if val in {3, 4, 5}:
+            return 0
+        elif val in {2, 0}:
+            return 1
+        return 2
+    X['Perpetrator Count'] = X['Perpetrator Count'].apply(cut_PerpetratorCount)
+    def cut_RecordSource(val):
+        if val == 1:
+            return 0
+        elif val == 2 or val == 0:
+            return 1
+        return 2
+    X['Victim Count'] = X['Victim Count'].apply(cut_RecordSource)
+    X=X.drop('Incident',axis=1)
+    for col in X.columns:
+        enc = LabelEncoder()
+        X[col] = enc.fit_transform(X[col])
+    # for col in X.columns:
+    #     print('{}:{}'.format(col, len(X[col].unique())))
+    #     print("{}:{}".format(col,max(X[col])))
+    X=np.array(X)
+    Y=np.array(Y)
+    idxes = np.array(range(X.shape[0]))
+    np.random.shuffle(idxes)
+    X=X[idxes]
+    Y=Y[idxes]
+    num_train=(X.shape[0]//10)*6
+    train_x=X[:num_train]
+    test_x=X[num_train:]
+    train_y=Y[:num_train]
+    test_y=Y[num_train:]
+    # print(train_x[:20])
+    # print(train_y[:20])
+    return train_x,train_x,None,test_x,test_x,None,train_y,test_y
+ #   return train_X, train_X, train_num_X, test_X, test_X, test_num_X, train_Y, test_Y
+ #    X=np.array(X)
+ #    print(X[:10])
+
+
 def find_deep_params(x1, x2):
     '''
     这部分作用是返回各个属性上取值的个数和取值的个数，并且对train_x进行处理
@@ -624,10 +750,6 @@ def find_deep_params(x1, x2):
     return x1, x2, field_size, feat_sizes
 
 if __name__ == '__main__':
-    train_x, train_cate_x, train_num_x, test_x, test_cate_x, test_nume_x, train_y,test_y=pre_adv_predict()
-    print(train_cate_x[:10])
-    # train_x, _, _, test_x, _, _, train_y, test_y = pre_titanic()
-    # print(train_x[:10])
-    # print(train_x.shape)
-    # print(train_y.shape)
-    # print()
+    _, train_x, _, _, test_x, _, train_y, test_y=pre_database()
+    print(train_y[:20])
+    print(test_y[:20])
