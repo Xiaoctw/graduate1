@@ -89,6 +89,18 @@ class DeepFM(nn.Module):
 
     def update_deepFM( self,train_x, train_y, batch_x, batch_y, lr=3e-2, num_epoch=10, task='regression',
                       alpha=0.7):
+        '''
+
+        :param train_x: 训练数据
+        :param train_y: 训练数据标签
+        :param batch_x:
+        :param batch_y:
+        :param lr:
+        :param num_epoch:
+        :param task:
+        :param alpha: 原油数据占比
+        :return:
+        '''
         if task == 'regression':
             cri = nn.MSELoss(reduction='sum')
         else:
@@ -156,7 +168,7 @@ def construct_deepfm_model(train_x, train_y, field_size, feat_sizes, lr=3e-2, ta
             loss.backward()
             opt.step()
             total_loss += loss.item()
-        if epoch % 1 == 0:
+        if epoch % 2 == 0:
             print('DeepFM训练过程,第{}次循环，当前loss为：{}'.format(epoch, total_loss))
         total_losses.append(total_loss)
     plt.plot(total_losses, ls='--', color='r')
@@ -167,6 +179,13 @@ def construct_deepfm_model(train_x, train_y, field_size, feat_sizes, lr=3e-2, ta
 
 
 def eval_deep_model(model: nn.Module, test_x, test_y):
+    '''
+    对数据进行预测
+    :param model:
+    :param test_x:
+    :param test_y:
+    :return:
+    '''
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     test_x, train_y = torch.Tensor(test_x).long(), torch.Tensor(test_y)
     model.to(device)

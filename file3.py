@@ -2,7 +2,7 @@ from models.DeepFM import *
 from models.GBDT2NN import *
 from preprocess.data_preprocess import *
 
-file_name='Chicago'
+file_name='database'
 train_num_epoch=40
 dim=3
 deep_lr=3e-2
